@@ -18,17 +18,22 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Copy composer files first
+# Copy composer files first (for layer caching)
 COPY composer.json composer.lock ./
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --optimize-autoloader --no-dev --no-scripts
 
-# Copy package files and build
+# Install npm dependencies (for layer caching)
 COPY package.json package-lock.json ./
-RUN npm ci && npm run build && npm prune --omit=dev
+RUN npm ci
 
-# Copy project
+# Copy full project source (needed for Vite build)
 COPY . .
+
+# Build frontend assets (requires vite.config.js and resources/)
+RUN npm run build && npm prune --omit=dev
+
+# Finalize composer autoload
 RUN composer dump-autoload --optimize
 
 # Permissions
